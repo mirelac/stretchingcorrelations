@@ -1,0 +1,177 @@
+#!/usr/bin/env python
+#-*- coding:utf-8 -*-
+
+from semanticpy.parser import Parser
+import wikipedia
+from collections import Counter
+import re
+import operator
+import cgi
+import cgitb
+
+cgitb.enable()
+
+print 'Content-Type: text/html; charset=utf-8'# HTML is following
+print                                         # blank line, end of headers
+print '<head><link type="text/css" rel="stylesheet" href="../css/steil.css" />'
+print '<title>Stretching Correlations</title>'
+print '</head>'
+print '<H1> Stretching... </H1>'
+print '<H2>  </H2>'
+
+form = cgi.FieldStorage()
+
+print "<H3>Some possible semantic correlations between %s "  % form['subject1'].value
+print "and %s" % form['subject2'].value
+print "are: </H3>"
+print "<br>"
+print "<H4> </H4>"
+
+# conversion in utf-8 for proper html printing (we get the strings in unicode)
+def convert(input):
+    if isinstance(input, dict):
+        return {convert(key): convert(value) for key, value in input.iteritems()}
+    elif isinstance(input, list):
+        return [convert(element) for element in input]
+    elif isinstance(input, unicode):
+        return input.encode('utf-8')
+    else:
+        return input
+
+query1 = form['subject1'].value
+query2 = form['subject2'].value
+#searchres is a list of the names of the first 10 wiki-articles
+searchres1 = wikipedia.search(query1)
+searchres2 = wikipedia.search(query2)
+
+if len(searchres1) < 1:
+    print 'Sorry, no correlations found, you could search again.'
+
+#empty string
+result1 = " "
+result2 = " "
+
+#loop through the 10 articles [this is like 'i']
+#print 'getting page contents for query 1'
+for this1 in searchres1:
+    try:
+        result1 += wikipedia.page(this1).content
+    except wikipedia.exceptions.DisambiguationError:
+        print 'Your first search term is ambiguous, please go to wikipedia and refine your search-term.'
+        print '\n'
+        break
+    #print 'getting page contents for query 2'
+
+
+for this2 in searchres2:
+    try:
+        result2 += wikipedia.page(this2).content
+    except wikipedia.exceptions.DisambiguationError:
+        print 'Your second search term is ambiguous, please go to wikipedia and refine your search-term.\n'
+        break
+
+#print 'done'
+#print 'regex to remove wiki syntax links'
+text1 = re.sub('==(.*?)==', ' ', result1)
+text2 = re.sub('==(.*?)==', ' ', result2)
+
+text1 = re.sub('\n', ' ', text1)
+text2 = re.sub('\n', ' ', text2)
+#old : text2 = re.sub('\s[ \t\n\r\f\v]', ' ', text2)
+
+text1 = re.sub('[^a-zA-Z. ]', ' ', text1)
+text2 = re.sub('[^a-zA-Z. ]', ' ', text2)
+
+paragraphs1 = text1.split('\n')
+paragraphs2 = text2.split('\n')
+
+#regex to split at end sentence characters
+sentences1 = re.split('(?<=[.?!])\s*(?=[[A-Z])', text1)
+sentences2 = re.split('(?<=[.?!])\s*(?=[[A-Z])', text2)
+
+parser = Parser()
+#print 'tokenizing and removing stopwords'
+words1 = parser.tokenise_and_remove_stop_words(sentences1)
+words2 = parser.tokenise_and_remove_stop_words(sentences2)
+
+# elements in the words-list are being counted and put into dictionary
+wordcountdict1 = Counter(words1)
+wordcountdict2 = Counter(words2)
+
+wordcountdict1 = convert(wordcountdict1)
+wordcountdict2 = convert(wordcountdict2)
+
+#print wordcountdict1
+#deleting empty elements:
+del wordcountdict1['']
+del wordcountdict2['']
+
+#make an empty dict
+wordtotal = {}
+
+# using iterkeys function, we loop through both dicts in nested loop
+# to compare words
+# word1&2 in for loops are the keys  
+for word1 in wordcountdict1.iterkeys():
+    for word2 in wordcountdict2.iterkeys():
+# here [word1&2] are used to refer to values in for those keys 
+        if word1 == word2:
+# if the keys match, the [] operation checks which values are less, and ads thos
+# keys and values to the new combined dict (=wordtotal)
+            if wordcountdict1[word1] < wordcountdict2[word2]:
+                wordtotal[word1] = wordcountdict1[word1]
+            elif wordcountdict1[word1] > wordcountdict2[word2]:
+                wordtotal[word2] = wordcountdict2[word2]
+            elif wordcountdict1[word1] == wordcountdict2[word2]:
+                wordtotal[word1] = wordcountdict1[word1]
+
+
+
+try:
+    del wordtotal['wa']
+except KeyError:
+    print "<!-- thi, ar, ha, and wa not in dict -->"
+try:
+    del wordtotal['ar']
+except KeyError:
+    print "<!-- thi, ar, ha, and wa not in dict -->"
+try:
+    del wordtotal['thi']
+except KeyError:
+    print "<!-- thi, ar, ha, and wa not in dict -->"
+try:
+    del wordtotal['ha']
+except KeyError:
+    print "<!-- thi, ar, ha, and wa not in dict -->"
+try:
+    del wordtotal['thei']
+except KeyError:
+    print "<!-- thi, ar, ha, and wa not in dict -->"
+
+# we sort wordtotal on the frequency of words and  store them in a list
+# named freqwords, we reverse frewqords to make the frequent words first
+freqwords = sorted(wordtotal.iteritems(),key = operator.itemgetter(1))
+freqwords.reverse()
+
+if freqwords > 1:
+   print "<H5>  </H5>"
+
+   for number,word in enumerate(freqwords[0:59]):
+      print "<div id=\"%s\">" % number
+      print word[0]
+      print "->"
+      print word[1]
+      print "times"
+      print "</div>"
+   print "<H6>  </H6>"
+   print "<div><p1> Please note that a lot of words will only appear in their stemmed (or 'stripped') form, </p1><div>"
+   print "<div><p2> so it may be useful to go to a related wikipedia article and search for the part of the word you're intered in."
+   print "<H7>  </H7>"
+print "<H8>  </H8>"
+
+#print "<p> %s</p>" % searchres1
+#print "<p> %s</p>" % searchres2
+
+ 
+
+Code licenced with: CC-BY-NC-SA 4.0
