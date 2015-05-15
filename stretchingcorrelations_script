@@ -82,9 +82,6 @@ text2 = re.sub('\n', ' ', text2)
 text1 = re.sub('[^a-zA-Z. ]', ' ', text1)
 text2 = re.sub('[^a-zA-Z. ]', ' ', text2)
 
-paragraphs1 = text1.split('\n')
-paragraphs2 = text2.split('\n')
-
 #regex to split at end sentence characters
 sentences1 = re.split('(?<=[.?!])\s*(?=[[A-Z])', text1)
 sentences2 = re.split('(?<=[.?!])\s*(?=[[A-Z])', text2)
